@@ -28,12 +28,21 @@ th{color:#667;font-weight:500}.up{color:#12a150}.down{color:#d33}.muted{color:#9
 .link{direction:ltr;font-size:12px;word-break:break-all;background:#f6f6fb;padding:8px;border-radius:8px;margin:8px 0}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1f2540;color:#fff;padding:9px 18px;border-radius:20px;display:none}
 .grid2{display:grid;grid-template-columns:1fr;gap:14px}@media(min-width:850px){.grid2{grid-template-columns:1fr 1fr}}
+.gen{border:2px solid #12b5a6}.gen .link{font-size:13px}
+button.b.r{background:#e74c3c}button.b.o{background:#fff;color:#6a3df0;border:1px solid #6a3df0}
+.ptools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}.ptools select,.ptools input{font:inherit;padding:7px 10px;border-radius:10px;border:1px solid #ccd}
+.pwrap{max-height:520px;overflow:auto}.pwrap td.ph{direction:ltr;text-align:right;white-space:nowrap}
+.tag{background:#efeafe;color:#6a3df0;border-radius:8px;padding:2px 8px;font-size:12px;white-space:nowrap}
+.modal{position:fixed;inset:0;background:rgba(20,25,50,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:9}
+.modal .card{max-width:380px;width:100%;margin:0}.modal .bar{justify-content:flex-start;margin-top:12px}
+@media(max-width:600px){.hide-m{display:none}}
 </style>
 </head>
 <body>
 <header><h1 id="h1"></h1><p id="hsub"></p></header>
 <main>
 <div class="kpis" id="kpis"></div>
+<div class="card gen"><h2>לינק כללי (בלי מקור)</h2><div class="muted" style="font-size:13px">מי שמגיע דרכו נרשם כמקור "כללי"</div><div class="link" id="genLink"></div><button class="b g" id="cpGen">העתק לינק כללי</button></div>
 <div class="card bar">
  <div class="seg" id="seg"></div>
  <label id="lFrom"></label><input type="date" id="from">
@@ -49,7 +58,13 @@ th{color:#667;font-weight:500}.up{color:#12a150}.down{color:#d33}.muted{color:#9
  <div class="bar"><input id="newName" style="flex:1;min-width:180px"><button class="b" id="addBtn"></button></div>
  <div id="addRes"></div>
 </div>
+<div class="card" id="pCard"><h2>מי נכנס (<span id="pCount">0</span>)</h2>
+ <div class="ptools"><select id="pSrc"></select><input id="pQ" placeholder="חיפוש שם או טלפון" style="flex:1;min-width:160px"></div>
+ <div class="ptools"><button class="b sm o" id="selAll">סמן הכל</button><button class="b sm o" id="selNone">נקה סימון</button><span class="muted" id="selInfo"></span></div>
+ <div class="ptools"><select id="exWhat"><option value="sel">המסומנים</option><option value="view">מה שמוצג (לפי סינון)</option><option value="all">כל אנשי הקשר</option></select><button class="b sm" id="exCsv">הורד אקסל (CSV)</button><button class="b sm g" id="exVcf">הורד לאנשי קשר (vCard)</button></div>
+ <div class="pwrap"><table id="pTbl"></table></div></div>
 </main>
+<div class="modal" id="modal"><div class="card"><p id="mText"></p><div class="bar"><button class="b r" id="mYes">מחק</button><button class="b o" id="mNo">ביטול</button></div></div></div>
 <div class="toast" id="toast"></div>
 <script>
 var API = 'https://script.google.com/macros/s/AKfycbxC4tw1a-6VIcA6Z0PrfqY-iTZR8-lGjxFbmMGnPPKgFjEGSpt2Rxf1iE2VP_DIJaN2/exec';
@@ -132,10 +147,43 @@ function render(){
 }
 function renderSources(){var cnt={};saved().forEach(function(r){cnt[r.source]=(cnt[r.source]||0)+1});
  var list=SOURCES.slice().sort(function(x,y){return (cnt[y.name]||0)-(cnt[x.name]||0)});
- $('srcTbl').innerHTML='<tr><th>'+T.source+'</th><th>'+T.cnt+'</th><th></th></tr>'+list.map(function(s,i){return '<tr><td>'+esc(s.name)+'</td><td>'+(cnt[s.name]||0)+'</td><td><button class="b sm g" data-i="'+i+'">'+T.copy+'</button></td></tr>'}).join('');
- [].forEach.call($('srcTbl').querySelectorAll('button'),function(btn){btn.onclick=function(){copy(list[+btn.dataset.i].link)}})}
+ $('srcTbl').innerHTML='<tr><th>'+T.source+'</th><th>'+T.cnt+'</th><th></th></tr>'+list.map(function(s,i){return '<tr><td>'+esc(s.name)+'</td><td>'+(cnt[s.name]||0)+'</td><td style="white-space:nowrap"><button class="b sm g" data-i="'+i+'">'+T.copy+'</button> <button class="b sm r" data-d="'+i+'">מחק</button></td></tr>'}).join('');
+ [].forEach.call($('srcTbl').querySelectorAll('button[data-i]'),function(btn){btn.onclick=function(){copy(list[+btn.dataset.i].link)}});
+ [].forEach.call($('srcTbl').querySelectorAll('button[data-d]'),function(btn){btn.onclick=function(){askDel(list[+btn.dataset.d].name)}})}
+function askDel(name){$('mText').textContent='בטוח שאתה רוצה למחוק את המקור '+name+'? הנתונים שכבר נאספו ממנו יישארו.';$('modal').style.display='flex';
+ $('mNo').onclick=function(){$('modal').style.display='none'};
+ $('mYes').onclick=function(){$('modal').style.display='none';call({api:'del',name:name},function(){SOURCES=SOURCES.filter(function(s){return s.name!==name});renderSources();toast('המקור נמחק')},fail)}}
+var PEOPLE=[],SEL={};
+function pDate(t){var d=new Date(t);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes())}
+function pKey(p){return p.phone+'|'+p.t}
+function pView(){var src=$('pSrc').value,q=$('pQ').value.trim().toLowerCase(),qd=q.replace(/[^0-9]/g,'');
+ return PEOPLE.filter(function(p){if(src&&p.source!==src)return false;if(!q)return true;
+  return (p.name||'').toLowerCase().indexOf(q)>=0||(qd&&(p.phone.replace(/[^0-9]/g,'').indexOf(qd)>=0||('0'+p.phone.replace(/[^0-9]/g,'').slice(3)).indexOf(qd)>=0))})}
+function renderPeople(){var cur=$('pSrc').value,srcs={};PEOPLE.forEach(function(p){srcs[p.source]=(srcs[p.source]||0)+1});
+ $('pSrc').innerHTML='<option value="">כל המקורות</option>'+Object.keys(srcs).sort().map(function(n){return '<option'+(n===cur?' selected':'')+' value="'+esc(n)+'">'+esc(n)+' ('+srcs[n]+')</option>'}).join('');
+ var v=pView();$('pCount').textContent=v.length;
+ $('pTbl').innerHTML='<tr><th></th><th>שם</th><th>טלפון</th><th>מקור</th><th>תאריך</th></tr>'+(v.length?v.slice(0,1000).map(function(p,i){return '<tr><td><input type="checkbox" data-k="'+esc(pKey(p))+'"'+(SEL[pKey(p)]?' checked':'')+'></td><td>'+esc(p.name||'-')+(p.status=='duplicate'?' <span class="muted">(כפול)</span>':'')+'</td><td class="ph">'+esc(p.phone)+'</td><td><span class="tag">'+esc(p.source)+'</span></td><td class="muted">'+pDate(p.t)+'</td></tr>'}).join(''):'<tr><td colspan="5" class="muted">'+T.none+'</td></tr>');
+ [].forEach.call($('pTbl').querySelectorAll('input'),function(c){c.onchange=function(){if(c.checked)SEL[c.dataset.k]=1;else delete SEL[c.dataset.k];selInfo()}});selInfo()}
+function selInfo(){$('selInfo').textContent=Object.keys(SEL).length+' מסומנים'}
+function exList(){var w=$('exWhat').value;var l=w=='all'?PEOPLE:w=='view'?pView():PEOPLE.filter(function(p){return SEL[pKey(p)]});
+ var seen={};return l.filter(function(p){var d=p.phone.replace(/[^0-9]/g,'');if(seen[d])return false;seen[d]=1;return true})}
+function dl(name,txt,type){var b=new Blob([txt],{type:type}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000)}
+function csvCell(x){x=String(x==null?'':x);if(/^[=@]|^[+\-](?![0-9])/.test(x))x="'"+x;return '"'+x.replace(/"/g,'""')+'"'}
+function csvPhone(p){var d=String(p).replace(/[^0-9]/g,'');return /^972\d{8,9}$/.test(d)?'+972 '+d.slice(3,5)+'-'+d.slice(5,8)+'-'+d.slice(8):p}
+function toCsv(l){return '\ufeff'+[['שם','טלפון','מקור','תאריך']].concat(l.map(function(p){return [p.name,csvPhone(p.phone),p.source,pDate(p.t)]})).map(function(r){return r.map(csvCell).join(',')}).join('\r\n')}
+function vEsc(x){return String(x||'').replace(/[\\;,]/g,function(c){return '\\'+c}).replace(/\r?\n/g,' ')}
+function toVcf(l){return l.map(function(p){var n=(p.name||p.phone)+' ('+p.source+')';return ['BEGIN:VCARD','VERSION:3.0','FN:'+vEsc(n),'N:;'+vEsc(n)+';;;','TEL;TYPE=CELL:'+p.phone.replace(/[^0-9+]/g,''),'NOTE:'+vEsc('בינגו Fit | '+p.source+' | '+pDate(p.t)),'END:VCARD'].join('\r\n')}).join('\r\n')+'\r\n'}
+function exGo(kind){var l=exList();if(!l.length){toast('אין אנשי קשר לייצוא');return}var nm='bingo-contacts-'+ymd(new Date());
+ if(kind=='csv')dl(nm+'.csv',toCsv(l),'text/csv;charset=utf-8');else dl(nm+'.vcf',toVcf(l),'text/vcard;charset=utf-8')}
+$('pSrc').onchange=$('pQ').oninput=renderPeople;
+$('selAll').onclick=function(){pView().forEach(function(p){SEL[pKey(p)]=1});renderPeople()};
+$('selNone').onclick=function(){SEL={};renderPeople()};
+$('exCsv').onclick=function(){exGo('csv')};$('exVcf').onclick=function(){exGo('vcf')};
+var GEN='https://wa.me/972559885270?text='+encodeURIComponent('אני רוצה להצטרף לסטטוס של חיים קורנברג');
+$('genLink').textContent=GEN;$('cpGen').onclick=function(){copy(GEN)};
 function load(){
- call({api:'all'},function(d){DATA=d.stats.map(function(r){return {d:new Date(r.t),source:r.source,status:r.status}});SOURCES=d.sources;render()},fail)}
+ call({api:'all'},function(d){DATA=d.stats.map(function(r){return {d:new Date(r.t),source:r.source,status:r.status}});SOURCES=d.sources;render()},fail);
+ call({api:'people'},function(p){PEOPLE=p;renderPeople()},function(e){$('pTbl').innerHTML='<tr><td class="muted">רשימת האנשים תהיה זמינה בקרוב ('+esc(e&&e.message||e)+')</td></tr>'})}
 function fail(e){toast(T.err+(e&&e.message||e))}
 $('from').onchange=$('to').onchange=render;
 $('reset').onclick=function(){$('from').value='';$('to').value='';render()};
