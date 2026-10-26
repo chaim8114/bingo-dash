@@ -148,7 +148,7 @@ function render(){
 function renderSources(){var cnt={};saved().forEach(function(r){cnt[r.source]=(cnt[r.source]||0)+1});
  var list=SOURCES.slice().sort(function(x,y){return (cnt[y.name]||0)-(cnt[x.name]||0)});
  $('srcTbl').innerHTML='<tr><th>'+T.source+'</th><th>'+T.cnt+'</th><th></th></tr>'+list.map(function(s,i){return '<tr><td>'+esc(s.name)+'</td><td>'+(cnt[s.name]||0)+'</td><td style="white-space:nowrap"><button class="b sm g" data-i="'+i+'">'+T.copy+'</button> <button class="b sm r" data-d="'+i+'">מחק</button></td></tr>'}).join('');
- [].forEach.call($('srcTbl').querySelectorAll('button[data-i]'),function(btn){btn.onclick=function(){copy(list[+btn.dataset.i].link)}});
+ [].forEach.call($('srcTbl').querySelectorAll('button[data-i]'),function(btn){btn.onclick=function(){copy(PL(list[+btn.dataset.i].link))}});
  [].forEach.call($('srcTbl').querySelectorAll('button[data-d]'),function(btn){btn.onclick=function(){askDel(list[+btn.dataset.d].name)}})}
 function askDel(name){$('mText').textContent='בטוח שאתה רוצה למחוק את המקור '+name+'? הנתונים שכבר נאספו ממנו יישארו.';$('modal').style.display='flex';
  $('mNo').onclick=function(){$('modal').style.display='none'};
@@ -179,7 +179,8 @@ $('pSrc').onchange=$('pQ').oninput=renderPeople;
 $('selAll').onclick=function(){pView().forEach(function(p){SEL[pKey(p)]=1});renderPeople()};
 $('selNone').onclick=function(){SEL={};renderPeople()};
 $('exCsv').onclick=function(){exGo('csv')};$('exVcf').onclick=function(){exGo('vcf')};
-var GEN='https://wa.me/972559885270?text='+encodeURIComponent('אני רוצה להצטרף לסטטוס של חיים קורנברג');
+function PL(u){try{var i=u.indexOf('?text=');if(i<0)return u;return u.slice(0,i+6)+decodeURIComponent(u.slice(i+6)).trim().replace(/\s+/g,'+');}catch(e){return u}}
+var GEN=PL('https://wa.me/972559885270?text='+encodeURIComponent('אני רוצה להצטרף לסטטוס של חיים קורנברג'));
 $('genLink').textContent=GEN;$('cpGen').onclick=function(){copy(GEN)};
 function load(){
  call({api:'all'},function(d){DATA=d.stats.map(function(r){return {d:new Date(r.t),source:r.source,status:r.status}});SOURCES=d.sources;render()},fail);
@@ -189,8 +190,8 @@ $('from').onchange=$('to').onchange=render;
 $('reset').onclick=function(){$('from').value='';$('to').value='';render()};
 $('addBtn').onclick=function(){var n=$('newName').value.trim();if(!n)return;$('addBtn').disabled=true;
  call({api:'add',name:n},function(r){$('addBtn').disabled=false;$('newName').value='';
-  $('addRes').innerHTML='<p>'+(r.existed?T.exists:T.newLink)+' <b>'+esc(r.name)+'</b></p><div class="link">'+esc(r.link)+'</div><button class="b g" id="cpNew">'+T.copy+'</button>';
-  $('cpNew').onclick=function(){copy(r.link)};
+  $('addRes').innerHTML='<p>'+(r.existed?T.exists:T.newLink)+' <b>'+esc(r.name)+'</b></p><div class="link">'+esc(PL(r.link))+'</div><button class="b g" id="cpNew">'+T.copy+'</button>';
+  $('cpNew').onclick=function(){copy(PL(r.link))};
   call({api:'sources'},function(s){SOURCES=s;renderSources()},fail);
  },function(e){$('addBtn').disabled=false;fail(e)})};
 // default: last 30 days
