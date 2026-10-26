@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta name="referrer" content="no-referrer">
+<title>דשבורד מקורות הגעה - בינגו Fit</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Rubik,Assistant,Segoe UI,Arial,sans-serif;background:#f3f5fb;color:#1f2540}
+header{background:linear-gradient(135deg,#6a3df0,#12b5a6);color:#fff;padding:22px 18px;border-radius:0 0 22px 22px}
+header h1{margin:0;font-size:22px}header p{margin:4px 0 0;opacity:.9;font-size:14px}
+main{max-width:1100px;margin:auto;padding:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:-30px}
+.card{background:#fff;border-radius:16px;box-shadow:0 4px 18px rgba(30,40,90,.08);padding:16px;margin-bottom:14px}
+.kpi .v{font-size:30px;font-weight:700;color:#6a3df0}.kpi .l{font-size:13px;color:#667}.kpi .s{font-size:12px;color:#999;margin-top:4px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg button{border:1px solid #6a3df0;background:#fff;color:#6a3df0;padding:7px 14px;cursor:pointer;font-size:14px}
+.seg button:first-child{border-radius:0 10px 10px 0}.seg button:last-child{border-radius:10px 0 0 10px}
+.seg button.on{background:#6a3df0;color:#fff}
+input,button.b{font:inherit;padding:8px 12px;border-radius:10px;border:1px solid #ccd}
+button.b{background:#6a3df0;color:#fff;border:0;cursor:pointer}button.b.sm{padding:5px 10px;font-size:13px}
+button.b.g{background:#12b5a6}
+h2{font-size:17px;margin:0 0 10px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px 6px;border-bottom:1px solid #eef;text-align:right}
+th{color:#667;font-weight:500}.up{color:#12a150}.down{color:#d33}.muted{color:#999}
+.chartbox{position:relative;height:320px}
+.link{direction:ltr;font-size:12px;word-break:break-all;background:#f6f6fb;padding:8px;border-radius:8px;margin:8px 0}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1f2540;color:#fff;padding:9px 18px;border-radius:20px;display:none}
+.grid2{display:grid;grid-template-columns:1fr;gap:14px}@media(min-width:850px){.grid2{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><h1 id="h1"></h1><p id="hsub"></p></header>
+<main>
+<div class="kpis" id="kpis"></div>
+<div class="card bar">
+ <div class="seg" id="seg"></div>
+ <label id="lFrom"></label><input type="date" id="from">
+ <label id="lTo"></label><input type="date" id="to">
+ <button class="b sm" id="reset"></button>
+</div>
+<div class="card"><h2 id="tTrend"></h2><div class="chartbox"><canvas id="trend"></canvas></div></div>
+<div class="grid2">
+ <div class="card"><h2 id="tBy"></h2><div class="chartbox" style="height:260px"><canvas id="bars"></canvas></div><table id="byTbl"></table></div>
+ <div class="card"><h2 id="tSrc"></h2><table id="srcTbl"></table></div>
+</div>
+<div class="card"><h2 id="tAdd"></h2>
+ <div class="bar"><input id="newName" style="flex:1;min-width:180px"><button class="b" id="addBtn"></button></div>
+ <div id="addRes"></div>
+</div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+var API = 'https://script.google.com/macros/s/AKfycbxC4tw1a-6VIcA6Z0PrfqY-iTZR8-lGjxFbmMGnPPKgFjEGSpt2Rxf1iE2VP_DIJaN2/exec';
+var K = (function(){var m=/[#&]k=([^&]+)/.exec(location.hash);return m?decodeURIComponent(m[1]):''})();
+var _n=0;
+function call(params,ok,bad){var cb='__j'+(++_n)+'_'+Date.now(),s=document.createElement('script'),done=false;
+ var tm=setTimeout(function(){fin();bad(new Error('timeout'))},30000);
+ function fin(){done=true;clearTimeout(tm);try{delete window[cb]}catch(x){window[cb]=undefined}s.remove()}
+ window[cb]=function(r){if(done)return;fin();if(r&&r.ok)ok(r.data);else bad(new Error(r&&r.error||'error'))};
+ s.onerror=function(){if(done)return;fin();bad(new Error('network'))};
+ var q='?api='+encodeURIComponent(params.api)+'&k='+encodeURIComponent(K)+'&callback='+cb+(params.name!=null?'&name='+encodeURIComponent(params.name):'')+'&_='+Date.now();
+ s.src=API+q;document.body.appendChild(s)}
+var T = {
+ h1:'\u05d3\u05e9\u05d1\u05d5\u05e8\u05d3 \u05de\u05e7\u05d5\u05e8\u05d5\u05ea \u05d4\u05d2\u05e2\u05d4 \u05dc\u05e1\u05d8\u05d8\u05d5\u05e1', hsub:'\u05d1\u05d9\u05e0\u05d2\u05d5 Fit - \u05db\u05de\u05d4 \u05e0\u05e9\u05de\u05e8\u05d5 \u05de\u05db\u05dc \u05de\u05e7\u05d5\u05e8',
+ total:'\u05e1\u05d4"\u05db \u05e0\u05e9\u05de\u05e8\u05d5', today:'\u05d4\u05d9\u05d5\u05dd', week:'\u05d4\u05e9\u05d1\u05d5\u05e2', month:'\u05d4\u05d7\u05d5\u05d3\u05e9', dups:'\u05db\u05d1\u05e8 \u05e9\u05de\u05d5\u05e8\u05d9\u05dd',
+ day:'\u05d9\u05d5\u05dd', wk:'\u05e9\u05d1\u05d5\u05e2', mo:'\u05d7\u05d5\u05d3\u05e9', from:'\u05de\u05ea\u05d0\u05e8\u05d9\u05da', to:'\u05e2\u05d3 \u05ea\u05d0\u05e8\u05d9\u05da', reset:'\u05db\u05dc \u05d4\u05ea\u05e7\u05d5\u05e4\u05d4',
+ trend:'\u05de\u05d2\u05de\u05d5\u05ea \u05dc\u05d0\u05d5\u05e8\u05da \u05d6\u05de\u05df', by:'\u05dc\u05e4\u05d9 \u05de\u05e7\u05d5\u05e8 \u05d1\u05ea\u05e7\u05d5\u05e4\u05d4 \u05d4\u05e0\u05d1\u05d7\u05e8\u05ea', src:'\u05de\u05e7\u05d5\u05e8\u05d5\u05ea \u05d5\u05e7\u05d9\u05e9\u05d5\u05e8\u05d9\u05dd', add:'\u05d4\u05d5\u05e1\u05e3 \u05de\u05e7\u05d5\u05e8 \u05d4\u05d2\u05e2\u05d4',
+ addBtn:'\u05d4\u05d5\u05e1\u05e3', ph:'\u05e9\u05dd \u05d4\u05de\u05e7\u05d5\u05e8, \u05dc\u05de\u05e9\u05dc: \u05e2\u05dc\u05d5\u05df \u05d4\u05e9\u05d1\u05ea', copy:'\u05d4\u05e2\u05ea\u05e7 \u05e7\u05d9\u05e9\u05d5\u05e8', copied:'\u05d4\u05e7\u05d9\u05e9\u05d5\u05e8 \u05d4\u05d5\u05e2\u05ea\u05e7',
+ source:'\u05de\u05e7\u05d5\u05e8', saved:'\u05e0\u05e9\u05de\u05e8\u05d5', prev:'\u05ea\u05e7\u05d5\u05e4\u05d4 \u05e7\u05d5\u05d3\u05de\u05ea', change:'\u05e9\u05d9\u05e0\u05d5\u05d9', cnt:'\u05e0\u05e9\u05de\u05e8\u05d5 \u05e1\u05d4"\u05db',
+ sum:'\u05e1\u05d4"\u05db', loading:'\u05d8\u05d5\u05e2\u05df...', err:'\u05e9\u05d2\u05d9\u05d0\u05d4: ', newLink:'\u05d4\u05e7\u05d9\u05e9\u05d5\u05e8 \u05dc\u05de\u05e7\u05d5\u05e8 \u05d4\u05d7\u05d3\u05e9:', exists:'\u05d4\u05de\u05e7\u05d5\u05e8 \u05db\u05d1\u05e8 \u05e7\u05d9\u05d9\u05dd. \u05d4\u05e7\u05d9\u05e9\u05d5\u05e8 \u05e9\u05dc\u05d5:',
+ dupNote:'\u05db\u05d1\u05e8 \u05e9\u05de\u05d5\u05e8\u05d9\u05dd (\u05db\u05e4\u05d5\u05dc\u05d9\u05dd) \u05d1\u05ea\u05e7\u05d5\u05e4\u05d4: ', none:'\u05d0\u05d9\u05df \u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05d1\u05ea\u05e7\u05d5\u05e4\u05d4 \u05d4\u05d6\u05d5', unknown:'\u05dc\u05d0 \u05d9\u05d3\u05d5\u05e2'
+};
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return '&#'+c.charCodeAt(0)+';'})}
+['h1','hsub'].forEach(function(i){$(i).textContent=T[i]});
+$('lFrom').textContent=T.from;$('lTo').textContent=T.to;$('reset').textContent=T.reset;
+$('tTrend').textContent=T.trend;$('tBy').textContent=T.by;$('tSrc').textContent=T.src;$('tAdd').textContent=T.add;
+$('addBtn').textContent=T.addBtn;$('newName').placeholder=T.ph;$('h1').textContent=T.h1;
+var DATA=[],SOURCES=[],GRAN='day',trendChart,barChart;
+var COLORS=['#6a3df0','#12b5a6','#f39c12','#e74c3c','#3498db','#9b59b6','#2ecc71','#e67e22','#1abc9c','#c0392b'];
+var seg=$('seg');[['day',T.day],['week',T.wk],['month',T.mo]].forEach(function(g){var b=document.createElement('button');b.textContent=g[1];b.dataset.g=g[0];b.onclick=function(){GRAN=g[0];render()};seg.appendChild(b)});
+function pad(n){return n<10?'0'+n:''+n}
+function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function sod(d){var x=new Date(d);x.setHours(0,0,0,0);return x}
+function sow(d){var x=sod(d);x.setDate(x.getDate()-x.getDay());return x}
+function som(d){var x=sod(d);x.setDate(1);return x}
+function bucketStart(d){return GRAN=='day'?sod(d):GRAN=='week'?sow(d):som(d)}
+function nextB(d){var x=new Date(d);if(GRAN=='day')x.setDate(x.getDate()+1);else if(GRAN=='week')x.setDate(x.getDate()+7);else x.setMonth(x.getMonth()+1);return x}
+function prevB(d){var x=new Date(d);if(GRAN=='day')x.setDate(x.getDate()-1);else if(GRAN=='week')x.setDate(x.getDate()-7);else x.setMonth(x.getMonth()-1);return x}
+function label(d){return GRAN=='month'?pad(d.getMonth()+1)+'/'+d.getFullYear():pad(d.getDate())+'/'+pad(d.getMonth()+1)}
+function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';setTimeout(function(){t.style.display='none'},1800)}
+function copy(txt){(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){toast(T.copied)},function(){var a=document.createElement('textarea');a.value=txt;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast(T.copied)})}
+function saved(){return DATA.filter(function(r){return r.status=='saved'})}
+function inRange(r,a,b){return r.d>=a&&r.d<b}
+function range(){var f=$('from').value,t=$('to').value;var a=f?new Date(f+'T00:00:00'):null,b=t?new Date(t+'T00:00:00'):null;if(b)b.setDate(b.getDate()+1);return [a,b]}
+function kpis(){var s=saved(),now=new Date(),d=sod(now),w=sow(now),m=som(now),dupN=DATA.length-s.length;
+ var c=function(a){return s.filter(function(r){return r.d>=a}).length};
+ var items=[[T.total,s.length],[T.today,c(d)],[T.week,c(w)],[T.month,c(m)],[T.dups,dupN]];
+ $('kpis').innerHTML=items.map(function(i,ix){return '<div class="card kpi"><div class="v"'+(ix==4?' style="color:#999"':'')+'>'+i[1]+'</div><div class="l">'+esc(i[0])+'</div></div>'}).join('')}
+function render(){
+ [].forEach.call(seg.children,function(b){b.classList.toggle('on',b.dataset.g==GRAN)});
+ kpis();
+ var s=saved(),rg=range(),now=new Date();
+ var a=rg[0]||(s.length?bucketStart(s.reduce(function(m,r){return r.d<m?r.d:m},s[0].d)):bucketStart(now));
+ var b=rg[1]||nextB(bucketStart(now));
+ a=bucketStart(a);
+ var buckets=[];for(var x=new Date(a);x<b&&buckets.length<400;x=nextB(x))buckets.push(new Date(x));
+ var inR=s.filter(function(r){return inRange(r,a,b)});
+ var srcs={};inR.forEach(function(r){srcs[r.source]=(srcs[r.source]||0)+1});
+ var names=Object.keys(srcs).sort(function(x,y){return srcs[y]-srcs[x]});
+ var idx=function(d){var k=bucketStart(d).getTime();for(var i=0;i<buckets.length;i++)if(buckets[i].getTime()==k)return i;return -1};
+ var total=buckets.map(function(){return 0}),per={};names.forEach(function(n){per[n]=buckets.map(function(){return 0})});
+ inR.forEach(function(r){var i=idx(r.d);if(i>=0){total[i]++;per[r.source][i]++}});
+ var ds=[{label:T.sum,data:total,borderColor:'#1f2540',backgroundColor:'rgba(31,37,64,.08)',borderWidth:3,fill:true,tension:.3}];
+ names.forEach(function(n,i){ds.push({label:n,data:per[n],borderColor:COLORS[i%COLORS.length],borderWidth:2,tension:.3,fill:false})});
+ if(trendChart)trendChart.destroy();
+ trendChart=new Chart($('trend'),{type:'line',data:{labels:buckets.map(label),datasets:ds},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});
+ // current period vs previous period of same length
+ var len=b-a,pa=new Date(a.getTime()-len),prevC={};
+ s.filter(function(r){return inRange(r,pa,a)}).forEach(function(r){prevC[r.source]=(prevC[r.source]||0)+1});
+ var all=names.slice();Object.keys(prevC).forEach(function(n){if(all.indexOf(n)<0)all.push(n)});
+ if(barChart)barChart.destroy();
+ barChart=new Chart($('bars'),{type:'bar',data:{labels:all,datasets:[{label:T.saved,data:all.map(function(n){return srcs[n]||0}),backgroundColor:'#6a3df0',borderRadius:6},{label:T.prev,data:all.map(function(n){return prevC[n]||0}),backgroundColor:'#c9c3f5',borderRadius:6}]},options:{maintainAspectRatio:false,indexAxis:'y',scales:{x:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});
+ var dupsIn=DATA.filter(function(r){return r.status=='duplicate'&&inRange(r,a,b)}).length;
+ var rows=all.map(function(n){var c=srcs[n]||0,p=prevC[n]||0,ch=p?Math.round((c-p)/p*100):(c?100:0);
+  var cls=c>p?'up':c<p?'down':'muted';var arrow=c>p?'&#9650;':c<p?'&#9660;':'';
+  return '<tr><td>'+esc(n)+'</td><td>'+c+'</td><td class="muted">'+p+'</td><td class="'+cls+'">'+arrow+' '+(c-p>=0?'+':'')+(c-p)+(p?' ('+ch+'%)':'')+'</td></tr>'}).join('');
+ $('byTbl').innerHTML=all.length?'<tr><th>'+T.source+'</th><th>'+T.saved+'</th><th>'+T.prev+'</th><th>'+T.change+'</th></tr>'+rows+'<tr><td colspan="4" class="muted">'+T.dupNote+dupsIn+'</td></tr>':'<tr><td class="muted">'+T.none+'</td></tr>';
+ renderSources();
+}
+function renderSources(){var cnt={};saved().forEach(function(r){cnt[r.source]=(cnt[r.source]||0)+1});
+ var list=SOURCES.slice().sort(function(x,y){return (cnt[y.name]||0)-(cnt[x.name]||0)});
+ $('srcTbl').innerHTML='<tr><th>'+T.source+'</th><th>'+T.cnt+'</th><th></th></tr>'+list.map(function(s,i){return '<tr><td>'+esc(s.name)+'</td><td>'+(cnt[s.name]||0)+'</td><td><button class="b sm g" data-i="'+i+'">'+T.copy+'</button></td></tr>'}).join('');
+ [].forEach.call($('srcTbl').querySelectorAll('button'),function(btn){btn.onclick=function(){copy(list[+btn.dataset.i].link)}})}
+function load(){
+ call({api:'all'},function(d){DATA=d.stats.map(function(r){return {d:new Date(r.t),source:r.source,status:r.status}});SOURCES=d.sources;render()},fail)}
+function fail(e){toast(T.err+(e&&e.message||e))}
+$('from').onchange=$('to').onchange=render;
+$('reset').onclick=function(){$('from').value='';$('to').value='';render()};
+$('addBtn').onclick=function(){var n=$('newName').value.trim();if(!n)return;$('addBtn').disabled=true;
+ call({api:'add',name:n},function(r){$('addBtn').disabled=false;$('newName').value='';
+  $('addRes').innerHTML='<p>'+(r.existed?T.exists:T.newLink)+' <b>'+esc(r.name)+'</b></p><div class="link">'+esc(r.link)+'</div><button class="b g" id="cpNew">'+T.copy+'</button>';
+  $('cpNew').onclick=function(){copy(r.link)};
+  call({api:'sources'},function(s){SOURCES=s;renderSources()},fail);
+ },function(e){$('addBtn').disabled=false;fail(e)})};
+// default: last 30 days
+(function(){var t=new Date(),f=new Date();f.setDate(f.getDate()-29);$('from').value=ymd(f);$('to').value=ymd(t)})();
+if(!K){toast(T.err+'missing key');}else load();
+setInterval(function(){if(K)load()},300000);
+</script>
+</body>
+</html>
